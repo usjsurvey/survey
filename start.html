@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: #e3e3e3;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #survey-container {
+            max-width: 600px;
+            width: 100%;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            overflow-y: auto;
+            max-height: 90vh;
+        }
+
+        h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            color: #00bcd4;
+        }
+
+        #instructions {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        img {
+            width: 100%;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 20px rgba(128, 128, 128, 0.5);
+            pointer-events: none;
+        }
+
+        input, select {
+            width: 80%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        select {
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 12px;
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: white;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #00bcd4;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #timer {
+            font-size: 1.2rem;
+            margin-top: 10px;
+            color: #00bcd4;
+            font-weight: bold;
+        }
+
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #00bcd4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #large-image-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        #large-image-container.visible {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        #large-image {
+            max-width: 100%;
+            max-height: 100vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 20px rgba(128, 128, 128, 0.5);
+        }
+
+        .answer-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .answer-buttons button {
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .answer-buttons button.selected {
+            background: #00bcd4;
+            color: #1a1a2e;
+            border-color: #00bcd4;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            #survey-container {
+                padding: 20px;
+                max-height: 95vh;
+            }
+
+            h2 {
+                font-size: 2rem;
+            }
+
+            #instructions {
+                font-size: 1rem;
+            }
+
+            input, select {
+                width: 90%;
+            }
+
+            button {
+                width: 90%;
+            }
+
+            .answer-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .answer-buttons button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="survey-container">
+        <div id="instructions">
+            <h2>Real vs AI Generated Images Survey</h2>
+            <p>
+                This survey is designed to evaluate how well participants can distinguish between real website images and AI-generated website images. 
+                You will be shown a series of images automatically, and for each image, you will answer 3 questions based on what you see. </br>
+                Each image will be shown for <strong> 8-9 seconds </strong> and will disappear automatically.
+                On average, this survey takes about <strong>4 minutes</strong> to complete. Your responses will help us understand human perception of AI-generated content.
+            </p>
+        </div>
+
+        <div id="user-info">
+            <p>Enter your details to begin:</p>
+            <input type="text" id="name" placeholder="Enter your name">
+            <input type="email" id="email" placeholder="Enter your email">
+            <input type="number" id="dob-year" placeholder="Year of Birth (Optional)" min="1900" max="2023">
+            <select id="education-level">
+                <option value="">Select your educational level (Optional)</option>
+                <option value="High School">High School</option>
+                <option value="Bachelor's Degree">Bachelor's Degree</option>
+                <option value="Master's Degree">Master's Degree</option>
+                <option value="PhD">PhD</option>
+                <option value="Other">Other</option>
+            </select>
+            <button onclick="startSurvey()">Start Survey</button>
+        </div>
+
+        <div id="image-section" class="hidden">
+            <img id="survey-image" src="" alt="Survey Image">
+            <div id="timer">Time left: <span id="time-left">8</span> seconds</div>
+            <div id="loader" class="loader hidden"></div>
+        </div>
+
+        <div id="questions-section" class="hidden">
+            <p id="question-text"></p>
+            <input type="text" id="answer" placeholder="Your answer here" class="hidden">
+            <div class="answer-buttons hidden"></div>
+            <button id="next-question-btn" onclick="nextQuestion()">Next Question</button>
+        </div>
+
+        <div id="end-message" class="hidden">
+            <h2>Survey Completed!</h2>
+            <p>Thank you, <span id="user-name"></span>.</p>
+        </div>
+    </div>
+
+    <div id="large-image-container" class="hidden">
+        <img id="large-image" src="" alt="">
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_rDKuVuyi5Lnl3qai9A7gk0ackp6wMPc",
+            authDomain: "usjsurvey.firebaseapp.com",
+            projectId: "usjsurvey",
+            storageBucket: "usjsurvey.firebasestorage.app",
+            messagingSenderId: "909448269840",
+            appId: "1:909448269840:web:4ee146249d534502d33a95",
+            measurementId: "G-XK40RRZ2BM"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        const images = [
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/fbb.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/aza.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/abb.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/neo.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/net.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/tters.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/in.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/lkd.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/afa.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/mic.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/bcblog.png"
+        ];
+
+        const questions = [
+            { text: "Was this a familiar brand/service?", type: "yesno", options: ["Yes", "No"] },
+            { text: "Do you think this is a Real or AI Generated Webpage?", type: "realfake", options: ["Real", "AI Generated"] },
+            { text: "What made you decide this webpage is Real/AI Generated?", type: "text" }
+        ];
+
+        let currentImageIndex = 0;
+        let currentQuestionIndex = 0;
+        let userName = "";
+        let userEmail = "";
+        let userDOB = "";
+        let userEducation = "";
+        let responses = [];
+        let imageTimer;
+        let questionStartTime;
+        let selectedAnswer = "";
+        let documentID = null;
+
+        const userInfoSection = document.getElementById("user-info");
+        const imageSection = document.getElementById("image-section");
+        const questionsSection = document.getElementById("questions-section");
+        const endMessage = document.getElementById("end-message");
+        const surveyImage = document.getElementById("survey-image");
+        const questionText = document.getElementById("question-text");
+        const userNameSpan = document.getElementById("user-name");
+        const answerInput = document.getElementById("answer");
+        const answerButtons = document.querySelector(".answer-buttons");
+        const timerDisplay = document.getElementById("time-left");
+        const loader = document.getElementById("loader");
+        const largeImageContainer = document.getElementById("large-image-container");
+
+        function preloadImages() {
+            images.forEach((imageUrl) => {
+                const img = new Image();
+                img.src = imageUrl;
+            });
+        }
+
+        preloadImages();
+
+        document.addEventListener("contextmenu", (e) => {
+            if (e.target.tagName === "IMG") {
+                e.preventDefault();
+            }
+        });
+
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        function generateDocumentID(email) {
+            const timestamp = new Date().getTime();
+            return `${email}_${timestamp}`;
+        }
+
+        function startSurvey() {
+            userName = document.getElementById("name").value.trim();
+            userEmail = document.getElementById("email").value.trim();
+            userDOB = document.getElementById("dob-year").value.trim();
+            userEducation = document.getElementById("education-level").value.trim();
+
+            if (userName === "" || userEmail === "") {
+                alert("Please enter your name and email.");
+                return;
+            }
+
+            if (!isValidEmail(userEmail)) {
+                alert("Please enter a valid email address.");
+                return;
+            }
+
+            documentID = generateDocumentID(userEmail);
+
+            db.collection("surveyResponses").doc(documentID).set({
+                name: userName,
+                email: userEmail,
+                dobYear: userDOB,
+                educationLevel: userEducation,
+                responses: []
+            }, { merge: true })
+            .then(() => {
+                console.log("User info saved to Firebase!");
+                document.getElementById("instructions").classList.add("hidden");
+                userInfoSection.classList.add("hidden");
+                showImage();
+            })
+            .catch((error) => {
+                console.error("Error saving user info to Firebase:", error);
+                alert("An error occurred. Please try again.");
+            });
+        }
+
+        function showImage() {
+            if (currentImageIndex >= images.length) {
+                endSurvey();
+                return;
+            }
+
+            loader.classList.remove("hidden");
+            surveyImage.src = images[currentImageIndex];
+            const largeImage = document.getElementById("large-image");
+            largeImage.src = images[currentImageIndex];
+
+            surveyImage.onload = () => {
+                loader.classList.add("hidden");
+                imageSection.classList.remove("hidden");
+                largeImageContainer.classList.remove("hidden");
+                largeImageContainer.classList.add("visible");
+
+                let timeLeft = 8;
+                timerDisplay.textContent = timeLeft;
+
+                imageTimer = setInterval(() => {
+                    timeLeft--;
+                    timerDisplay.textContent = timeLeft;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(imageTimer);
+                        imageSection.classList.add("hidden");
+                        largeImageContainer.classList.add("hidden");
+                        largeImageContainer.classList.remove("visible");
+                        showQuestions();
+                    }
+                }, 1000);
+            };
+        }
+
+        function showQuestions() {
+            const currentQuestion = questions[currentQuestionIndex];
+            questionText.textContent = currentQuestion.text;
+
+            answerButtons.innerHTML = "";
+            answerInput.value = "";
+            selectedAnswer = "";
+
+            if (currentQuestion.type === "text") {
+                answerInput.classList.remove("hidden");
+                answerButtons.classList.add("hidden");
+            } else {
+                answerInput.classList.add("hidden");
+                answerButtons.classList.remove("hidden");
+
+                currentQuestion.options.forEach((option) => {
+                    const button = document.createElement("button");
+                    button.textContent = option;
+                    button.onclick = () => selectAnswer(option);
+                    answerButtons.appendChild(button);
+                });
+            }
+
+            questionsSection.classList.remove("hidden");
+            questionStartTime = Date.now();
+        }
+
+        function selectAnswer(answer) {
+            selectedAnswer = answer;
+            const buttons = document.querySelectorAll(".answer-buttons button");
+            buttons.forEach((button) => {
+                button.classList.remove("selected");
+                if (button.textContent === answer) {
+                    button.classList.add("selected");
+                }
+            });
+        }
+
+        function nextQuestion() {
+            const currentQuestion = questions[currentQuestionIndex];
+            let answer;
+
+            if (currentQuestion.type === "text") {
+                answer = answerInput.value.trim();
+                if (answer === "") {
+                    alert("Please provide an answer.");
+                    return;
+                }
+            } else {
+                answer = selectedAnswer;
+                if (!answer) {
+                    alert("Please select an answer.");
+                    return;
+                }
+            }
+
+            const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+
+            db.collection("surveyResponses").doc(documentID).update({
+                responses: firebase.firestore.FieldValue.arrayUnion({
+                    image: images[currentImageIndex],
+                    question: currentQuestion.text,
+                    answer: answer,
+                    timeTaken: timeTaken
+                })
+            })
+            .then(() => {
+                console.log("Response saved to Firebase!");
+            })
+            .catch((error) => {
+                console.error("Error saving response to Firebase:", error);
+            });
+
+            currentQuestionIndex++;
+            if (currentQuestionIndex >= questions.length) {
+                currentQuestionIndex = 0;
+                currentImageIndex++;
+                questionsSection.classList.add("hidden");
+                showImage();
+            } else {
+                showQuestions();
+            }
+        }
+
+        function endSurvey() {
+            endMessage.classList.remove("hidden");
+            userNameSpan.textContent = userName;
+            console.log("Survey Responses:", responses);
+        }
+    </script>
+</body>
+</html>
