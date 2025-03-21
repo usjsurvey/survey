@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Survey</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 50%;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            text-align: center;
+        }
+        .hidden { display: none; }
+        .survey-section.hidden {
+            display: none;
+        }
+        .survey-section {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+        .image-section {
+            width: 80%;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        .question-section {
+            width: 20%;
+            background: white;
+            padding: 20px;
+            box-shadow: -2px 0px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+        }
+        button {
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            width: 100%;
+        }
+        .question {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .selected {
+            background: #28a745 !important;
+        }
+
+        /* Full-screen button styles */
+        #fullScreenBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1001;
+        }
+        #fullScreenBtn.hidden {
+            display: none !important;
+        }
+
+        /* Full-screen mode styles */
+        .full-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            z-index: 9999;
+            background-color: #000; /* Black background for letterboxing */
+        }
+
+        input[type="text"],
+        input[type="email"] {
+            width: calc(100% - 24px);
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="landing-page">
+        <h1>Welcome to Our Online Survey</h1>
+        <p>Please enter your details to begin the survey.</p>
+        <input type="text" id="name" placeholder="Your Name" required><br><br>
+        <input type="email" id="email" placeholder="Your Email" required><br><br>
+        <button onclick="startSurvey()">Start Survey</button>
+    </div>
+
+    <div class="survey-section hidden" id="survey-page">
+        <div class="image-section" id="image-section">
+            <button id="fullScreenBtn" onclick="toggleFullScreen()">
+                <i class="fas fa-expand"></i>
+            </button>
+        </div>
+        <div class="question-section" id="question-section">
+            <p class="question" id="question-text1"></p>
+            <button id="btnYes1" onclick="selectAnswer(1, true)">Yes</button>
+            <button id="btnNo1" onclick="selectAnswer(1, false)">No</button>
+            <p class="question" id="question-text2"></p>
+            <button id="btnReal2" onclick="selectAnswer(2, 'Real')">Real</button>
+            <button id="btnAI2" onclick="selectAnswer(2, 'AI Generated')">AI Generated</button>
+            <button id="confirmBtn" class="hidden" onclick="confirmAnswers()">Confirm Answers</button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_rDKuVuyi5Lnl3qai9A7gk0ackp6wMPc",
+            authDomain: "usjsurvey.firebaseapp.com",
+            projectId: "usjsurvey",
+            storageBucket: "usjsurvey.appspot.com",
+            messagingSenderId: "909448269840",
+            appId: "1:909448269840:web:4ee146249d534502d33a95",
+            measurementId: "G-XK40RRZ2BM"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        const images = [
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/fbb.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/aza.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/abb.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/neo.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/net.png"
+        ];
+        const questions = [
+            ["Are you familiar with this service/brand?", "Do you think this image is real or AI Generated?"]
+        ];
+        let index = 0;
+        let answers = {};
+        let imageTimer;
+        let userDocumentId;
+        let isFullScreen = false;
+
+        function startSurvey() {
+            const name = document.getElementById("name").value;
+            const email = document.getElementById("email").value;
+
+            if (!name || !email) {
+                alert("Please enter your name and email to start the survey.");
+                return;
+            }
+
+            const timestamp = new Date().getTime();
+            userDocumentId = `${email}_${timestamp}`;
+
+            document.getElementById("landing-page").classList.add("hidden");
+            document.getElementById("survey-page").classList.remove("hidden");
+            document.getElementById("question-section").classList.remove("hidden");
+            displayNextImage();
+        }
+
+        function displayNextImage() {
+            if (index >= images.length) {
+                alert("Survey completed! Thank you for your responses.");
+                location.reload();
+                return;
+            }
+
+            if (imageTimer) clearTimeout(imageTimer);
+
+            const imageUrl = images[index];
+            const imageSection = document.getElementById("image-section");
+            imageSection.style.backgroundImage = `url(${imageUrl})`;
+            imageSection.classList.remove("full-screen");
+            document.getElementById("fullScreenBtn").classList.remove("hidden");
+            isFullScreen = false;
+
+            const questionIndex = index % questions.length;
+            document.getElementById("question-text1").textContent = questions[questionIndex][0];
+            document.getElementById("question-text2").textContent = questions[questionIndex][1];
+            document.getElementById("confirmBtn").classList.add("hidden");
+            resetButtons();
+            answers = {};
+
+            imageTimer = setTimeout(() => {
+                imageSection.style.backgroundImage = "none";
+                document.getElementById("fullScreenBtn").classList.add("hidden");
+                if (isFullScreen) toggleFullScreen();
+            }, 8000);
+        }
+
+        function toggleFullScreen() {
+            const imageSection = document.getElementById("image-section");
+            isFullScreen = !isFullScreen;
+            
+            if (isFullScreen) {
+                imageSection.classList.add("full-screen");
+                document.getElementById("question-section").style.opacity = "0";
+            } else {
+                imageSection.classList.remove("full-screen");
+                document.getElementById("question-section").style.opacity = "1";
+            }
+        }
+
+        function selectAnswer(questionNumber, response) {
+            answers[questionNumber] = response;
+            if (questionNumber === 1) {
+                document.getElementById("btnYes1").classList.remove("selected");
+                document.getElementById("btnNo1").classList.remove("selected");
+                document.getElementById(response ? "btnYes1" : "btnNo1").classList.add("selected");
+            } else {
+                document.getElementById("btnReal2").classList.remove("selected");
+                document.getElementById("btnAI2").classList.remove("selected");
+                document.getElementById(response === 'Real' ? "btnReal2" : "btnAI2").classList.add("selected");
+            }
+            if (Object.keys(answers).length === 2) {
+                document.getElementById("confirmBtn").classList.remove("hidden");
+            }
+        }
+
+        function resetButtons() {
+            document.querySelectorAll('button[id^="btn"]').forEach(btn => btn.classList.remove("selected"));
+        }
+
+        function confirmAnswers() {
+            if (answers[1] === undefined || answers[2] === undefined) {
+                alert("Please answer both questions before confirming.");
+                return;
+            }
+
+            const responseData = {
+                image: images[index],
+                questions: [
+                    { question: questions[index % questions.length][0], answer: answers[1] },
+                    { question: questions[index % questions.length][1], answer: answers[2] }
+                ],
+                timestamp: new Date().toISOString()
+            };
+
+            db.collection("surveyResponses").doc(userDocumentId).set({
+                name: document.getElementById("name").value,
+                email: document.getElementById("email").value,
+                responses: firebase.firestore.FieldValue.arrayUnion(responseData)
+            }, { merge: true })
+                .then(() => {
+                    index++;
+                    displayNextImage();
+                })
+                .catch((error) => {
+                    console.error("Error updating document: ", error);
+                });
+        }
+    </script>
+</body>
+</html>
