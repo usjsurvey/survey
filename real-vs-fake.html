@@ -449,7 +449,7 @@
 
             db.collection("surveyResponsesFake").doc(userDocumentId).update({
                 finalFeedback: finalAnswer,
-                fakeCharacteristics: selectedCharacteristics
+                Characteristics: selectedCharacteristics
             }).then(() => {
                 document.getElementById("final-question").classList.add("hidden");
                 document.getElementById("thank-you").classList.remove("hidden");
