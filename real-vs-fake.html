@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        /* ALL ORIGINAL STYLES UNCHANGED */
         * {
             box-sizing: border-box;
         }
@@ -173,19 +174,18 @@
     </style>
 </head>
 <body>
-    <!-- EXACTLY YOUR ORIGINAL HTML -->
     <div class="container" id="landing-page">
         <h1>Real vs Phishing Websites Survey</h1>
-<p>
-  This survey is designed to evaluate how well participants can distinguish between real websites and phishing websites. </br> 
-  You will automatically be shown 12 full-page website screenshots (with no visible URLs), and for each one, you will answer 2 questions based on what you see. </br>
-  <strong>You may use the FullScreen icon (top right corner of the image) to display the image in full screen for better visibility.</strong> </br>
-  Each website will be displayed for <strong>8-9 seconds</strong> and will disappear automatically. On average, this survey takes about <strong>3 minutes</strong> to complete. Your responses will help us understand how people perceive authenticity in website design. </br>
-  Please enter your details to begin the survey.
-</p>
-<p style="font-size: 0.8em; color: #555;">
-  Note: The required fields are only used to ensure valid participation and will not be used during data analysis, as all data will be anonymized.
-</p>
+        <p>
+            This survey is designed to evaluate how well participants can distinguish between real websites and phishing websites.</br> 
+            You will automatically be shown 12 full-page website screenshots (with no visible URLs), and for each one, you will answer 2 questions based on what you see.</br>
+            <strong>You may use the FullScreen icon (top right corner of the image) to display the image in full screen for better visibility.</strong> </br>
+            Each website will be displayed for <strong>8-9 seconds</strong> and will disappear automatically. On average, this survey takes about <strong>3 minutes</strong> to complete. Your responses will help us understand how people perceive authenticity in website design.</br>
+            Please enter your details to begin the survey.
+        </p>
+        <p style="font-size: 0.8em; color: #555;">
+            Note: The required fields are only used to ensure valid participation and will not be used during data analysis, as all data will be anonymized.
+        </p>
 
         <input type="text" id="name" placeholder="Your Name (Required)" required>
         <input type="email" id="email" placeholder="Your Email (Required)" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$">
@@ -242,7 +242,7 @@
                 <input type="checkbox" id="texturecomplex" class="ai-characteristic">
                 <label for="lighting">Language Complexity</label>
             </div>
-			<div class="checkbox-item">
+            <div class="checkbox-item">
                 <input type="checkbox" id="logoplacement" class="ai-characteristic">
                 <label for="lighting">Logo Placement</label>
             </div>
@@ -265,7 +265,6 @@
     </div>
 
     <script>
-        // Original Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyC_rDKuVuyi5Lnl3qai9A7gk0ackp6wMPc",
             authDomain: "usjsurvey.firebaseapp.com",
@@ -280,7 +279,6 @@
         }
         const db = firebase.firestore();
 
-        // Original images array
         const images = [
             "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/mic.png",
             "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/in.png",
@@ -290,8 +288,8 @@
             "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/app.png",
             "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/ds.png",
             "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/gm.png",
-	    "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/az.png",
-	    "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/x.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/az.png",
+            "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/x.png",
             "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/tik.png",
             "https://raw.githubusercontent.com/usjsurvey/survey/refs/heads/main/yah.png"            
         ];
@@ -299,12 +297,14 @@
             ["Are you familiar with this service/brand?", "Based on the image, would you say this is a real webpage or a phishing attempt for the service shown?"]
         ];
         
-        // ONLY CHANGES MADE: Add shuffle logic
+        // Added time tracking variables
         let shuffledImages = [];
         let index = 0;
         let answers = {};
         let imageTimer;
         let userDocumentId;
+        let totalTime = 0;
+        let imageStartTime;
 
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -329,7 +329,6 @@
                 return;
             }
 
-            // ONLY CHANGE: Create shuffled copy
             shuffledImages = shuffleArray([...images]);
             
             const timestamp = new Date().getTime();
@@ -341,13 +340,15 @@
         }
 
         function displayNextImage() {
-            // ONLY CHANGE: Use shuffledImages instead of images
             if (index >= shuffledImages.length) {
                 showFinalQuestion();
                 return;
             }
 
             if (imageTimer) clearTimeout(imageTimer);
+
+            // Start tracking time for this image
+            imageStartTime = Date.now();
 
             const imageUrl = shuffledImages[index];
             const imageSection = document.getElementById("image-section");
@@ -374,7 +375,6 @@
             }, 8000);
         }
 
-        // REST OF YOUR ORIGINAL FUNCTIONS UNCHANGED
         function validateEmail(email) {
             const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             return re.test(email);
@@ -417,20 +417,25 @@
                 return;
             }
 
+            // Calculate time spent for this image
+            const timeSpent = Date.now() - imageStartTime;
+            totalTime += timeSpent;
+
             const birthYear = document.getElementById("birthYear").value;
             const userData = {
                 name: document.getElementById("name").value,
                 email: document.getElementById("email").value,
                 ...(birthYear && { birthYear: parseInt(birthYear) }),
                 responses: firebase.firestore.FieldValue.arrayUnion({
-                    // ONLY CHANGE: Record shuffled image
                     image: shuffledImages[index],
                     questions: [
                         { question: questions[index % questions.length][0], answer: answers[1] },
                         { question: questions[index % questions.length][1], answer: answers[2] }
                     ],
+                    timeSpent: timeSpent,
                     timestamp: new Date().toISOString()
-                })
+                }),
+                totalTime: totalTime
             };
 
             db.collection("surveyResponsesFake").doc(userDocumentId).set(userData, { merge: true })
@@ -455,7 +460,8 @@
 
             db.collection("surveyResponsesFake").doc(userDocumentId).update({
                 finalFeedback: finalAnswer,
-                Characteristics: selectedCharacteristics
+                Characteristics: selectedCharacteristics,
+                totalTime: totalTime
             }).then(() => {
                 document.getElementById("final-question").classList.add("hidden");
                 document.getElementById("thank-you").classList.remove("hidden");
