@@ -1,0 +1,348 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Keep all original head content unchanged -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Survey</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* ALL ORIGINAL STYLES UNCHANGED */
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #121212; color: white; touch-action: manipulation; }
+        .container { width: 90%; max-width: 500px; background: #1e1e1e; padding: 15px; box-shadow: 0 0 10px rgba(255, 255, 255, 0.1); border-radius: 10px; text-align: center; }
+        .hidden { display: none !important; }
+        .survey-section { display: flex; flex-direction: column; height: 100vh; width: 100%; }
+        .image-section { width: 100%; height: 60vh; background-size: contain; background-position: center; background-repeat: no-repeat; position: relative; background-color: #000; }
+        .question-section { width: 100%; background: #2d2d2d; padding: 15px; box-shadow: 0 -2px 10px rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; gap: 15px; overflow-y: auto; overflow-x: hidden; }
+        button { padding: 15px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; margin: 5px 0; width: 100%; touch-action: manipulation; }
+        .question { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: white; overflow-wrap: break-word; }
+        .selected { background: #28a745 !important; }
+        #fullScreenBtn { position: absolute; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1001; }
+        input[type="text"], input[type="email"], input[type="number"], textarea { width: calc(100% - 20px); padding: 12px; margin: 10px 0; font-size: 16px; border: 1px solid #555; border-radius: 8px; background-color: #333; color: white; }
+        textarea { resize: vertical; min-height: 100px; }
+        input:invalid { border-color: #ff4444; }
+        .image-section:fullscreen { background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #000; }
+        .checkbox-group { display: flex; flex-direction: column; gap: 10px; margin: 15px 0; text-align: left; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; }
+        input[type="checkbox"] { width: 18px; height: 18px; accent-color: #007bff; margin: 0; }
+
+        @media (min-width: 768px) {
+            .container { width: 50%; padding: 20px; }
+            .survey-section { flex-direction: row; }
+            .image-section { width: 80%; height: 100vh; }
+            .question-section { width: 20%; height: 100vh; box-shadow: -2px 0px 10px rgba(255, 255, 255, 0.1); }
+            button { padding: 12px; font-size: 14px; }
+            .question { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Keep all original HTML structure unchanged -->
+    <div class="container" id="landing-page">
+        <h1>Real vs Phishing Websites Survey</h1>
+        <p>
+            This survey is designed to evaluate how well participants can distinguish between real websites and phishing websites.</br> 
+            You will automatically be shown 12 full-page website screenshots (with no visible URLs), and for each one, you will answer 2 questions based on what you see.</br>
+            <strong>You may use the FullScreen icon (top right corner of the image) to display the image in full screen for better visibility.</strong> </br>
+            Each website will be displayed for <strong>8-9 seconds</strong> and will disappear automatically. On average, this survey takes about <strong>3 minutes</strong> to complete. Your responses will help us understand how people perceive authenticity in website design.</br>
+            Please enter your details to begin the survey.
+        </p>
+        <p style="font-size: 0.8em; color: #555;">
+            Note: The required fields are only used to ensure valid participation and will not be used during data analysis, as all data will be anonymized.
+        </p>
+
+        <input type="text" id="name" placeholder="Your Name (Required)" required>
+        <input type="email" id="email" placeholder="Your Email (Required)" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$">
+        <input type="number" id="birthYear" placeholder="Year of Birth (Optional)" min="1900" max="2024">
+        <button onclick="startSurvey()">Start Survey</button>
+    </div>
+
+    <div class="survey-section hidden" id="survey-page">
+        <div class="image-section" id="image-section">
+            <button id="fullScreenBtn" onclick="toggleFullScreen()">
+                <i class="fas fa-expand"></i>
+            </button>
+        </div>
+        <div class="question-section" id="question-section">
+            <p class="question" id="question-text1"></p>
+            <button id="btnYes1" onclick="selectAnswer(1, true)">Yes</button>
+            <button id="btnNo1" onclick="selectAnswer(1, false)">No</button>
+            <p class="question" id="question-text2"></p>
+            <button id="btnReal2" onclick="selectAnswer(2, 'Real')">Real</button>
+            <button id="btnAI2" onclick="selectAnswer(2, 'Phishing')">Phishing</button>
+            <button id="confirmBtn" class="hidden" onclick="confirmAnswers()">Confirm Answers</button>
+        </div>
+    </div>
+
+    <div class="container hidden" id="final-question">
+        <p class="question">For the images you identified as Phishing, what specific features or characteristics led you to that conclusion?</p>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="unnatural" class="ai-characteristic"><label for="unnatural">Low Resolution Images</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="textMismatch" class="ai-characteristic"><label for="text">Fonts and Color Mismatch</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="textureError" class="ai-characteristic"><label for="texture">Grammatical Errors</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="lighting" class="ai-characteristic"><label for="lighting">Inconsistent lighting/shadows</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="moddedlogo" class="ai-characteristic"><label for="lighting">Modifications in Logo</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="thirdparty" class="ai-characteristic"><label for="lighting">Mention of third-party tools</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="texturecomplex" class="ai-characteristic"><label for="lighting">Language Complexity</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="logoplacement" class="ai-characteristic"><label for="lighting">Logo Placement</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="poordesign" class="ai-characteristic"><label for="lighting">Poor Design and Layout</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="other" class="ai-characteristic"><label for="other">Other (please specify below)</label></div>
+        </div>
+        <textarea id="final-answer" placeholder="Please share your observations here..."></textarea>
+        <button onclick="submitFinalAnswer()">Submit Response</button>
+    </div>
+
+    <div class="container hidden" id="thank-you">
+        <h1>Thank you for participating in the survey!</h1>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_rDKuVuyi5Lnl3qai9A7gk0ackp6wMPc",
+            authDomain: "usjsurvey.firebaseapp.com",
+            projectId: "usjsurvey",
+            storageBucket: "usjsurvey.appspot.com",
+            messagingSenderId: "909448269840",
+            appId: "1:909448269840:web:4ee146249d534502d33a95",
+            measurementId: "G-XK40RRZ2BM"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        // ======== REPLACE THESE IMAGE SETS ========
+        const imagesDesktop = [
+            { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/facebook-desktop.png", title: "Facebook" },
+            { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/gmail-desktop.png", title: "Gmail" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/Microsoft-Dekstop.png", title: "Microsoft" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/netflix-desktop.png", title: "Netflix" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/tiktok-desktop.png", title: "Tiktok" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/linkedin-desktop.png", title: "LinkedIn" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/insta-desktop.png", title: "Instagram" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/x-desktop.png", title: "X" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/azure-desktop.png", title: "Azure" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/yahoo-desktop.png", title: "Yahoo" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/discord-desktop.png", title: "Discord" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/apple-desktop.png", title: "Apple" }
+			
+            // Add all 12 desktop images in this format
+        ];
+        
+        const imagesMobile = [
+            { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/facebook-mobile.png", title: "Facebook" },
+            { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/Gmail-Mobile.png", title: "Gmail" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/Microsoft-Mobile.png", title: "Microsoft" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/netflix-mobile.png", title: "Netflix" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/tiktok-mobile.png", title: "Tiktok" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/linkedin-mobile.png", title: "LinkedIn" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/insta-mobile.png", title: "Instagram" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/x-mobile.png", title: "X" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/azure-mobile.png", title: "Azure" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/yahoo-mobile.png", title: "Yahoo" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/discord-mobile.png", title: "Discord" },
+	    { url: "https://raw.githubusercontent.com/Ta3aBis/timed-survey/refs/heads/main/Apple-mobile.png", title: "Apple" }
+			
+            // Add all 12 mobile images in this format
+        ];
+        // ===========================================
+
+        const isDesktop = window.innerWidth >= 768;
+        const images = isDesktop ? imagesDesktop : imagesMobile;
+
+        const questions = [
+            ["Are you familiar with this service/brand?", "Based on the image, would you say this is a real webpage or a phishing attempt for the service shown?"]
+        ];
+        
+        let shuffledImages = [];
+        let index = 0;
+        let answers = {};
+        let imageTimer;
+        let userDocumentId;
+        let totalTime = 0;
+        let imageStartTime;
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startSurvey() {
+            const name = document.getElementById("name").value.trim();
+            const email = document.getElementById("email").value.trim();
+            const birthYear = document.getElementById("birthYear").value;
+
+            if (!name || !email) {
+                alert("Please enter your name and email to start the survey.");
+                return;
+            }
+
+            if (!validateEmail(email)) {
+                alert("Please enter a valid email address.");
+                return;
+            }
+
+            shuffledImages = shuffleArray([...images]);
+            
+            const timestamp = new Date().getTime();
+            userDocumentId = `${email}_${timestamp}`;
+
+            document.getElementById("landing-page").classList.add("hidden");
+            document.getElementById("survey-page").classList.remove("hidden");
+            displayNextImage();
+        }
+
+        function displayNextImage() {
+            if (index >= shuffledImages.length) {
+                showFinalQuestion();
+                return;
+            }
+
+            if (imageTimer) clearTimeout(imageTimer);
+
+            imageStartTime = Date.now();
+            const currentImage = shuffledImages[index];
+            const imageSection = document.getElementById("image-section");
+            
+            imageSection.style.backgroundImage = `url(${currentImage.url})`;
+            document.getElementById("fullScreenBtn").classList.remove("hidden");
+            
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+
+            const questionIndex = index % questions.length;
+            document.getElementById("question-text1").textContent = questions[questionIndex][0];
+            document.getElementById("question-text2").textContent = questions[questionIndex][1];
+            document.getElementById("confirmBtn").classList.add("hidden");
+            resetButtons();
+            answers = {};
+
+            imageTimer = setTimeout(() => {
+                imageSection.style.backgroundImage = "none";
+                document.getElementById("fullScreenBtn").classList.add("hidden");
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                }
+            }, 8000);
+        }
+
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        function toggleFullScreen() {
+            const imageSection = document.getElementById("image-section");
+            if (!document.fullscreenElement) {
+                imageSection.requestFullscreen().catch(err => {
+                    alert(`Error entering fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function selectAnswer(questionNumber, response) {
+            answers[questionNumber] = response;
+            if (questionNumber === 1) {
+                document.getElementById("btnYes1").classList.remove("selected");
+                document.getElementById("btnNo1").classList.remove("selected");
+                document.getElementById(response ? "btnYes1" : "btnNo1").classList.add("selected");
+            } else {
+                document.getElementById("btnReal2").classList.remove("selected");
+                document.getElementById("btnAI2").classList.remove("selected");
+                document.getElementById(response === 'Real' ? "btnReal2" : "btnAI2").classList.add("selected");
+            }
+            if (Object.keys(answers).length === 2) {
+                document.getElementById("confirmBtn").classList.remove("hidden");
+            }
+        }
+
+        function resetButtons() {
+            document.querySelectorAll('button[id^="btn"]').forEach(btn => btn.classList.remove("selected"));
+        }
+
+        function confirmAnswers() {
+            if (answers[1] === undefined || answers[2] === undefined) {
+                alert("Please answer both questions before confirming.");
+                return;
+            }
+
+            const timeSpent = Date.now() - imageStartTime;
+            totalTime += timeSpent;
+            const currentImage = shuffledImages[index];
+
+            const birthYear = document.getElementById("birthYear").value;
+            const userData = {
+                name: document.getElementById("name").value,
+                email: document.getElementById("email").value,
+                ...(birthYear && { birthYear: parseInt(birthYear) }),
+                responses: firebase.firestore.FieldValue.arrayUnion({
+                    image: {
+                        url: currentImage.url,
+                        title: currentImage.title
+                    },
+                    questions: [
+                        { question: questions[index % questions.length][0], answer: answers[1] },
+                        { question: questions[index % questions.length][1], answer: answers[2] }
+                    ],
+                    timeSpent: timeSpent,
+                    timestamp: new Date().toISOString()
+                }),
+                totalTime: totalTime
+            };
+
+            db.collection("surveyResponses").doc(userDocumentId).set(userData, { merge: true })
+                .then(() => {
+                    index++;
+                    displayNextImage();
+                })
+                .catch((error) => {
+                    console.error("Error updating document: ", error);
+                });
+        }
+
+        function showFinalQuestion() {
+            document.getElementById("survey-page").classList.add("hidden");
+            document.getElementById("final-question").classList.remove("hidden");
+        }
+
+        function submitFinalAnswer() {
+            const checkboxes = document.querySelectorAll('.ai-characteristic:checked');
+            const selectedCharacteristics = Array.from(checkboxes).map(cb => cb.nextElementSibling.textContent);
+            const finalAnswer = document.getElementById("final-answer").value.trim();
+
+            db.collection("surveyResponses").doc(userDocumentId).update({
+                finalFeedback: finalAnswer,
+                Characteristics: selectedCharacteristics,
+                totalTime: totalTime
+            }).then(() => {
+                document.getElementById("final-question").classList.add("hidden");
+                document.getElementById("thank-you").classList.remove("hidden");
+                setTimeout(() => {
+                    location.reload();
+                }, 3000);
+            }).catch((error) => {
+                console.error("Error saving final answer: ", error);
+            });
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const questionSection = document.getElementById("question-section");
+            if (document.fullscreenElement) {
+                questionSection.style.opacity = "0";
+            } else {
+                questionSection.style.opacity = "1";
+            }
+        });
+    </script>
+</body>
+</html>
