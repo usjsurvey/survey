@@ -344,7 +344,7 @@
                 totalTime: totalTime
             };
 
-            db.collection("surveyResponses").doc(userDocumentId).set(userData, { merge: true })
+            db.collection("surveyResponsesFake").doc(userDocumentId).set(userData, { merge: true })
                 .then(() => {
                     index++;
                     displayNextImage();
@@ -364,7 +364,7 @@
             const selectedCharacteristics = Array.from(checkboxes).map(cb => cb.nextElementSibling.textContent);
             const finalAnswer = document.getElementById("final-answer").value.trim();
 
-            db.collection("surveyResponses").doc(userDocumentId).update({
+            db.collection("surveyResponsesFake").doc(userDocumentId).update({
                 finalFeedback: finalAnswer,
                 Characteristics: selectedCharacteristics,
                 totalTime: totalTime
