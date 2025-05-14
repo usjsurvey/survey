@@ -370,6 +370,11 @@
         }
 
         function confirmAnswers() {
+            if (window.isProcessing) return;
+            window.isProcessing = true;
+
+            document.getElementById("confirmBtn").classList.add("hidden");
+            
             if (answers[1] === undefined || answers[2] === undefined) {
                 alert("Please answer both questions before confirming.");
                 return;
@@ -404,10 +409,12 @@
 
             db.collection("surveyResponsesFakewithURL").doc(userDocumentId).set(userData, { merge: true })
                 .then(() => {
+                    window.isProcessing = false;
                     index++;
                     displayNextImage();
                 })
                 .catch((error) => {
+                    window.isProcessing = false;
                     console.error("Error updating document: ", error);
                 });
         }
