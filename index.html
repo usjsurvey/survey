@@ -67,7 +67,7 @@
 	</p>
     <input type="text" id="studentId" placeholder="Student ID (Required)" required>
     <p id="errorMsg" style="color: red; display: none;">Please enter your Student ID.</p>
-    <button onclick="assignSurvey()">Start Survey</button>
+    <button onclick="assignSurveyWithRetry()">Start Survey</button>
   </div>
 
 <script>
@@ -92,38 +92,52 @@
     "https://usjsurvey.github.io/survey/real-vs-ai-survey-apt.html"
   ];
 
-async function assignSurvey() {
-  const studentId = document.getElementById("studentId").value.trim();
-  const errorMsg = document.getElementById("errorMsg");
-
-  if (!studentId) {
-    errorMsg.style.display = "block";
-    return;
-  } else {
-    errorMsg.style.display = "none";
+  // ✅ Function with retry logic
+  async function assignSurveyWithRetry(retries = 5, delay = 500) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        await assignSurvey();
+        return;
+      } catch (err) {
+        console.warn(`Attempt ${attempt + 1} failed:`, err.message);
+        if (attempt === retries - 1) {
+          alert("We’re experiencing heavy traffic. Please try again shortly.");
+          console.error("Final failure:", err);
+        } else {
+          await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
+        }
+      }
+    }
   }
 
-  const participantsRef = db.collection("participants");
-  const counterRef = db.collection("meta").doc("counter");
+  // 🔁 Actual survey assignment logic
+  async function assignSurvey() {
+    const studentId = document.getElementById("studentId").value.trim();
+    const errorMsg = document.getElementById("errorMsg");
 
-  try {
-    // 1. Check if student already has an assigned survey
+    if (!studentId) {
+      errorMsg.style.display = "block";
+      throw new Error("Missing Student ID");
+    } else {
+      errorMsg.style.display = "none";
+    }
+
+    const participantsRef = db.collection("participants");
+    const counterRef = db.collection("meta").doc("counter");
+
+    // Check if already submitted
     const existingDoc = await participantsRef.doc(studentId).get();
-
     if (existingDoc.exists) {
-      const assignedSurvey = existingDoc.data().assignedSurvey;
-      window.location.assign(assignedSurvey);
+      const data = existingDoc.data();
+      window.location.assign(data.assignedSurvey);
       return;
     }
 
-    // 2. Assign new survey using transaction
-    let assignedSurvey = null;
-
+    // New submission with transaction
     await db.runTransaction(async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-      const count = counterDoc.exists ? counterDoc.data().count : 0;
-
-      assignedSurvey = surveyLinks[count % surveyLinks.length];
+      const counterSnap = await transaction.get(counterRef);
+      const currentCount = counterSnap.exists ? counterSnap.data().count : 0;
+      const assignedSurvey = surveyLinks[currentCount % surveyLinks.length];
 
       transaction.set(participantsRef.doc(studentId), {
         studentId: studentId,
@@ -131,24 +145,17 @@ async function assignSurvey() {
         timestamp: new Date().toISOString()
       });
 
-      if (counterDoc.exists) {
-        transaction.update(counterRef, { count: count + 1 });
-      } else {
-        transaction.set(counterRef, { count: 1 });
-      }
+      transaction.update(counterRef, {
+        count: currentCount + 1
+      });
+
+      setTimeout(() => window.location.assign(assignedSurvey), 100);
     });
-
-    // 3. Redirect after transaction finishes
-    window.location.assign(assignedSurvey);
-
-  } catch (err) {
-    console.error("Error assigning survey:", err);
-    alert("Something went wrong. Please try again.");
   }
-}
 
+  // Trigger by button
   document.getElementById("studentId").addEventListener("keypress", (e) => {
-    if (e.key === "Enter") assignSurvey();
+    if (e.key === "Enter") assignSurveyWithRetry();
   });
 </script>
 </body>
