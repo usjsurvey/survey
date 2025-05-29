@@ -92,57 +92,60 @@
     "https://usjsurvey.github.io/survey/real-vs-ai-survey-apt.html"
   ];
 
-  async function assignSurvey() {
-    const studentId = document.getElementById("studentId").value.trim();
-    const errorMsg = document.getElementById("errorMsg");
+async function assignSurvey() {
+  const studentId = document.getElementById("studentId").value.trim();
+  const errorMsg = document.getElementById("errorMsg");
 
-    if (!studentId) {
-      errorMsg.style.display = "block";
+  if (!studentId) {
+    errorMsg.style.display = "block";
+    return;
+  } else {
+    errorMsg.style.display = "none";
+  }
+
+  const participantsRef = db.collection("participants");
+  const counterRef = db.collection("meta").doc("counter");
+
+  try {
+    // 1. Check if student already has an assigned survey
+    const existingDoc = await participantsRef.doc(studentId).get();
+
+    if (existingDoc.exists) {
+      const assignedSurvey = existingDoc.data().assignedSurvey;
+      window.location.assign(assignedSurvey);
       return;
-    } else {
-      errorMsg.style.display = "none";
     }
 
-    const participantsRef = db.collection("participants");
-    const counterRef = db.collection("meta").doc("counter");
+    // 2. Assign new survey using transaction
+    let assignedSurvey = null;
 
-    try {
-      const existingDoc = await participantsRef.doc(studentId).get();
+    await db.runTransaction(async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      const count = counterDoc.exists ? counterDoc.data().count : 0;
 
-      // ✅ Case 1: student already has an assigned survey
-      if (existingDoc.exists) {
-        const assignedSurvey = existingDoc.data().assignedSurvey;
-        window.location.assign(assignedSurvey);
-        return;
-      }
+      assignedSurvey = surveyLinks[count % surveyLinks.length];
 
-      // ✅ Case 2: new student — assign next survey and create record
-      await db.runTransaction(async (transaction) => {
-        const counterDoc = await transaction.get(counterRef);
-        const currentCount = counterDoc.exists ? counterDoc.data().count : 0;
-        const assignedSurvey = surveyLinks[currentCount % surveyLinks.length];
-
-        transaction.set(participantsRef.doc(studentId), {
-          studentId: studentId,
-          assignedSurvey: assignedSurvey,
-          timestamp: new Date().toISOString()
-        });
-
-        if (counterDoc.exists) {
-          transaction.update(counterRef, { count: currentCount + 1 });
-        } else {
-          transaction.set(counterRef, { count: 1 });
-        }
-
-        // ✅ Redirect after assignment
-        setTimeout(() => window.location.assign(assignedSurvey), 100);
+      transaction.set(participantsRef.doc(studentId), {
+        studentId: studentId,
+        assignedSurvey: assignedSurvey,
+        timestamp: new Date().toISOString()
       });
 
-    } catch (err) {
-      console.error("Error assigning survey:", err);
-      alert("Something went wrong. Please try again.");
-    }
+      if (counterDoc.exists) {
+        transaction.update(counterRef, { count: count + 1 });
+      } else {
+        transaction.set(counterRef, { count: 1 });
+      }
+    });
+
+    // 3. Redirect after transaction finishes
+    window.location.assign(assignedSurvey);
+
+  } catch (err) {
+    console.error("Error assigning survey:", err);
+    alert("Something went wrong. Please try again.");
   }
+}
 
   document.getElementById("studentId").addEventListener("keypress", (e) => {
     if (e.key === "Enter") assignSurvey();
