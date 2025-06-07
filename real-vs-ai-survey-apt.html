@@ -215,64 +215,76 @@
             const birthYear = document.getElementById("birthYear").value;
             const userType = document.querySelector('input[name="userType"]:checked')?.value;
 
-            if (!name || !email) {
-                alert("Please enter your name and email to start the survey.");
-                return;
-            }
-
-            if (!validateEmail(email)) {
+            if (email && !validateEmail(email)) {
                 alert("Please enter a valid email address.");
                 return;
             }
-
+            
             if (!userType) {
                 alert("Please select your technical background.");
                 return;
             }
 
-            shuffledImages = shuffleArray([...images]);
-            
             const timestamp = new Date().getTime();
-            userDocumentId = `${email}_${timestamp}`;
+            userDocumentId = email ? `${email}_${timestamp}` : `anonymous_${timestamp}`;
 
+            shuffledImages = shuffleArray([...images]);
+			
             document.getElementById("landing-page").classList.add("hidden");
             document.getElementById("survey-page").classList.remove("hidden");
             displayNextImage();
         }
 
-        function displayNextImage() {
+        function displayNextImage(retryCount = 0) {
             if (index >= shuffledImages.length) {
                 showFinalQuestion();
                 return;
             }
-
+        
             if (imageTimer) clearTimeout(imageTimer);
-
-            imageStartTime = Date.now();
+        
             const currentImage = shuffledImages[index];
             const imageSection = document.getElementById("image-section");
-            
-            imageSection.style.backgroundImage = `url(${currentImage.url})`;
-            document.getElementById("fullScreenBtn").classList.remove("hidden");
-            
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
-
-            const questionIndex = index % questions.length;
-            document.getElementById("question-text1").textContent = questions[questionIndex][0];
-            document.getElementById("question-text2").textContent = questions[questionIndex][1];
+            const imgLoader = new Image();
+        
+            imageSection.style.backgroundImage = "none";
+            document.getElementById("question-text1").textContent = "";
+            document.getElementById("question-text2").textContent = "";
             document.getElementById("confirmBtn").classList.add("hidden");
+            document.getElementById("fullScreenBtn").classList.add("hidden");
             resetButtons();
             answers = {};
-
-            imageTimer = setTimeout(() => {
-                imageSection.style.backgroundImage = "none";
-                document.getElementById("fullScreenBtn").classList.add("hidden");
+        
+            imgLoader.onload = () => {
+                imageSection.style.backgroundImage = `url(${currentImage.url})`;
+                document.getElementById("fullScreenBtn").classList.remove("hidden");
+        
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
                 }
-            }, 18000);
+        
+                const questionIndex = index % questions.length;
+                document.getElementById("question-text1").textContent = questions[questionIndex][0];
+                document.getElementById("question-text2").textContent = questions[questionIndex][1];
+        
+                imageStartTime = Date.now();
+                imageTimer = setTimeout(() => {
+                    imageSection.style.backgroundImage = "none";
+                    document.getElementById("fullScreenBtn").classList.add("hidden");
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                }, 18000);
+            };
+        
+            imgLoader.onerror = () => {
+                console.warn(`Retry #${retryCount + 1}: Failed to load ${currentImage.url}`);
+                setTimeout(() => {
+                    displayNextImage(retryCount + 1);
+                }, 1500); // retry after 1.5 seconds
+            };
+        
+            imgLoader.src = currentImage.url;
         }
 
         function validateEmail(email) {
@@ -329,8 +341,8 @@
             const birthYear = document.getElementById("birthYear").value;
             const userType = document.querySelector('input[name="userType"]:checked')?.value;
             const userData = {
-                name: document.getElementById("name").value,
-                email: document.getElementById("email").value,
+                name: document.getElementById("name").value || null,
+                email: document.getElementById("email").value || null,
                 userType: userType,
                 ...(birthYear && { birthYear: parseInt(birthYear) }),
                 responses: firebase.firestore.FieldValue.arrayUnion({
