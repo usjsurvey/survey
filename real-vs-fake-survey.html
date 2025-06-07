@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -225,8 +226,8 @@
                 alert("Please select your technical background.");
                 return;
             }
-			
-			const timestamp = new Date().getTime();
+
+            const timestamp = new Date().getTime();
             userDocumentId = email ? `${email}_${timestamp}` : `anonymous_${timestamp}`;
 
             shuffledImages = shuffleArray([...images]);
@@ -236,40 +237,59 @@
             displayNextImage();
         }  
 
-        function displayNextImage() {
+
+        function displayNextImage(retryCount = 0) {
             if (index >= shuffledImages.length) {
                 showFinalQuestion();
                 return;
             }
-
+        
             if (imageTimer) clearTimeout(imageTimer);
-
-            imageStartTime = Date.now();
+        
             const currentImage = shuffledImages[index];
             const imageSection = document.getElementById("image-section");
-            
-            imageSection.style.backgroundImage = `url(${currentImage.url})`;
-            document.getElementById("fullScreenBtn").classList.remove("hidden");
-            
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
-
-            const questionIndex = index % questions.length;
-            document.getElementById("question-text1").textContent = questions[questionIndex][0];
-            document.getElementById("question-text2").textContent = questions[questionIndex][1];
+            const imgLoader = new Image();
+        
+            imageSection.style.backgroundImage = "none";
+            document.getElementById("question-text1").textContent = "";
+            document.getElementById("question-text2").textContent = "";
             document.getElementById("confirmBtn").classList.add("hidden");
+            document.getElementById("fullScreenBtn").classList.add("hidden");
             resetButtons();
             answers = {};
-
-            imageTimer = setTimeout(() => {
-                imageSection.style.backgroundImage = "none";
-                document.getElementById("fullScreenBtn").classList.add("hidden");
+        
+            imgLoader.onload = () => {
+                imageSection.style.backgroundImage = `url(${currentImage.url})`;
+                document.getElementById("fullScreenBtn").classList.remove("hidden");
+        
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
                 }
-            }, 8000);
+        
+                const questionIndex = index % questions.length;
+                document.getElementById("question-text1").textContent = questions[questionIndex][0];
+                document.getElementById("question-text2").textContent = questions[questionIndex][1];
+        
+                imageStartTime = Date.now();
+                imageTimer = setTimeout(() => {
+                    imageSection.style.backgroundImage = "none";
+                    document.getElementById("fullScreenBtn").classList.add("hidden");
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                }, 8000);
+            };
+        
+            imgLoader.onerror = () => {
+                console.warn(`Retry #${retryCount + 1}: Failed to load ${currentImage.url}`);
+                setTimeout(() => {
+                    displayNextImage(retryCount + 1);
+                }, 1500); // retry after 1.5 seconds
+            };
+        
+            imgLoader.src = currentImage.url;
         }
+
 
         function validateEmail(email) {
             const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
