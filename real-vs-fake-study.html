@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -281,52 +282,70 @@
             document.getElementById("landing-page").classList.add("hidden");
             document.getElementById("survey-page").classList.remove("hidden");
             displayNextImage();
-        }  
+        }
 
-        function displayNextImage() {
+        function displayNextImage(retryCount = 0) {
             if (index >= shuffledImages.length) {
                 showFinalQuestion();
                 return;
             }
-
+        
             if (imageTimer) clearTimeout(imageTimer);
-
-            imageStartTime = Date.now();
+        
             const currentImage = shuffledImages[index];
-            const imageContainer = document.getElementById("image-section");
-            const urlBar = imageContainer.querySelector('.url-bar');
-            const urlDisplay = imageContainer.querySelector('.url-display');
-            const imageContent = imageContainer.querySelector('.image-content');
-            
-            // Show URL bar and set URL
-            urlBar.style.display = 'flex';
-            urlDisplay.textContent = currentImage.displayUrl;
-            
-            // Set image
-            imageContent.style.backgroundImage = `url(${currentImage.url})`;
-            document.getElementById("fullScreenBtn").classList.remove("hidden");
-            
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
-
-            const questionIndex = index % questions.length;
-            document.getElementById("question-text1").textContent = questions[questionIndex][0];
-            document.getElementById("question-text2").textContent = questions[questionIndex][1];
+            const imageSection = document.getElementById("image-section");
+            const urlBar = imageSection.querySelector('.url-bar');
+			const imageContent = imageSection.querySelector('.image-content');
+            const urlDisplay = imageSection.querySelector('.url-display');
+            const imgLoader = new Image();
+        
+            // Clear view
+            imageSection.style.backgroundImage = "none";
+            urlBar.style.display = "none";
+            document.getElementById("question-text1").textContent = "";
+            document.getElementById("question-text2").textContent = "";
             document.getElementById("confirmBtn").classList.add("hidden");
+            document.getElementById("fullScreenBtn").classList.add("hidden");
+            document.getElementById("question-section").style.visibility = "hidden";
             resetButtons();
             answers = {};
-
-            imageTimer = setTimeout(() => {
-                // Hide both image and URL bar simultaneously
-                imageContent.style.backgroundImage = "none";
-                urlBar.style.display = 'none';
-                document.getElementById("fullScreenBtn").classList.add("hidden");
+        
+            imgLoader.onload = () => {
+                imageContent.style.backgroundImage = `url(${currentImage.url})`;
+                urlBar.style.display = "flex";
+                urlDisplay.textContent = currentImage.displayUrl;
+                document.getElementById("fullScreenBtn").classList.remove("hidden");
+            
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
                 }
-            }, 8000);
+            
+                const questionIndex = index % questions.length;
+                document.getElementById("question-text1").textContent = questions[questionIndex][0];
+                document.getElementById("question-text2").textContent = questions[questionIndex][1];
+                document.getElementById("question-section").style.visibility = "visible";
+            
+                imageStartTime = Date.now();
+                imageTimer = setTimeout(() => {
+                    imageContent.style.backgroundImage = "none";
+                    urlBar.style.display = 'none';
+                    document.getElementById("fullScreenBtn").classList.add("hidden");
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                }, 8000);
+            };
+        
+            imgLoader.onerror = () => {
+                console.warn(`Retry #${retryCount + 1}: Failed to load ${currentImage.url}`);
+                setTimeout(() => {
+                    displayNextImage(retryCount + 1);
+                }, 1500); // retry after 1.5 seconds
+            };
+
+            imgLoader.src = currentImage.url;
         }
+
 
         function validateEmail(email) {
             const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
