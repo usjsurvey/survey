@@ -263,30 +263,25 @@
             const birthYear = document.getElementById("birthYear").value;
             const userType = document.querySelector('input[name="userType"]:checked')?.value;
 
-            if (!name || !email) {
-                alert("Please enter your name and email to start the survey.");
-                return;
-            }
-
-            if (!validateEmail(email)) {
+            if (email && !validateEmail(email)) {
                 alert("Please enter a valid email address.");
                 return;
             }
-
+            
             if (!userType) {
                 alert("Please select your technical background.");
                 return;
             }
 
-            shuffledImages = shuffleArray([...images]);
-            
             const timestamp = new Date().getTime();
-            userDocumentId = `${email}_${timestamp}`;
+            userDocumentId = email ? `${email}_${timestamp}` : `anonymous_${timestamp}`;
 
+            shuffledImages = shuffleArray([...images]);
+			
             document.getElementById("landing-page").classList.add("hidden");
             document.getElementById("survey-page").classList.remove("hidden");
             displayNextImage();
-        }
+        }  
 
         function displayNextImage() {
             if (index >= shuffledImages.length) {
@@ -387,8 +382,8 @@
             const birthYear = document.getElementById("birthYear").value;
             const userType = document.querySelector('input[name="userType"]:checked')?.value;
             const userData = {
-                name: document.getElementById("name").value,
-                email: document.getElementById("email").value,
+                name: document.getElementById("name").value || null,
+                email: document.getElementById("email").value || null,
                 userType: userType,
                 ...(birthYear && { birthYear: parseInt(birthYear) }),
                 responses: firebase.firestore.FieldValue.arrayUnion({
