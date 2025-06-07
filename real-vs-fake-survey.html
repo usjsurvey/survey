@@ -227,7 +227,7 @@
             }
 			
 			const timestamp = new Date().getTime();
-            userDocumentId = email ? ${email}_${timestamp} : anonymous_${timestamp};
+            userDocumentId = email ? `${email}_${timestamp}` : `anonymous_${timestamp}`;
 
             shuffledImages = shuffleArray([...images]);
 			
