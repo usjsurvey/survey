@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -236,39 +235,62 @@
             displayNextImage();
         }  
 
-        function displayNextImage() {
+
+        function displayNextImage(retryCount = 0) {
+            if (retryCount > 10) {
+                alert("We’re having trouble loading this image. Please check your connection or refresh the page.");
+                return;
+            }
+        
             if (index >= shuffledImages.length) {
                 showFinalQuestion();
                 return;
             }
-
+        
             if (imageTimer) clearTimeout(imageTimer);
-
-            imageStartTime = Date.now();
+        
             const currentImage = shuffledImages[index];
             const imageSection = document.getElementById("image-section");
-            
-            imageSection.style.backgroundImage = `url(${currentImage.url})`;
-            document.getElementById("fullScreenBtn").classList.remove("hidden");
-            
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
-
-            const questionIndex = index % questions.length;
-            document.getElementById("question-text1").textContent = questions[questionIndex][0];
-            document.getElementById("question-text2").textContent = questions[questionIndex][1];
+            const imgLoader = new Image();
+        
+            imageSection.style.backgroundImage = "none";
+            document.getElementById("question-text1").textContent = "";
+            document.getElementById("question-text2").textContent = "";
             document.getElementById("confirmBtn").classList.add("hidden");
+            document.getElementById("fullScreenBtn").classList.add("hidden");
             resetButtons();
             answers = {};
-
-            imageTimer = setTimeout(() => {
-                imageSection.style.backgroundImage = "none";
-                document.getElementById("fullScreenBtn").classList.add("hidden");
+        
+            imgLoader.onload = () => {
+                imageSection.style.backgroundImage = `url(${currentImage.url})`;
+                document.getElementById("fullScreenBtn").classList.remove("hidden");
+        
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
                 }
-            }, 18000);
+        
+                const questionIndex = index % questions.length;
+                document.getElementById("question-text1").textContent = questions[questionIndex][0];
+                document.getElementById("question-text2").textContent = questions[questionIndex][1];
+        
+                imageStartTime = Date.now();
+                imageTimer = setTimeout(() => {
+                    imageSection.style.backgroundImage = "none";
+                    document.getElementById("fullScreenBtn").classList.add("hidden");
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                }, 18000); // ← important: match your survey's image display time
+            };
+
+            imgLoader.onerror = () => {
+                console.warn(`Image failed to load. Retrying... (${retryCount + 1})`);
+                setTimeout(() => {
+                    displayNextImage(retryCount + 1);
+                }, 1500); // retry every 1.5s
+            };
+        
+            imgLoader.src = currentImage.url;
         }
 
         function validateEmail(email) {
