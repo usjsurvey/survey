@@ -68,6 +68,7 @@
     <p id="errorMsg" style="color: red; display: none;">Please enter your Student ID.</p>
     <button onclick="assignSurveyWithRetry()">Start Survey</button>
     <button onclick="assignSurveyWithRetry()">Proceed Without Student ID</button>
+	<p id="loadingMessage" style="display: none; color: #00ff99; margin-top: 10px;">🔄 Redirecting you to the survey...</p>
   </div>
 
 <script>
@@ -93,37 +94,51 @@
   ];
 
   // ✅ Function with retry logic
-  async function assignSurveyWithRetry(retries = 5, delay = 500, overrideId = null) {
-    const storedId = localStorage.getItem("surveyUserId");
-    const studentInput = document.getElementById("studentId").value.trim();
-  
-    let finalId = overrideId || storedId || (studentInput ? studentInput : null);
-  
-    // If no ID yet, generate anonymous ID and store it
-    if (!finalId) {
-      finalId = `anon_${new Date().getTime()}`;
-      localStorage.setItem("surveyUserId", finalId);
-    }
-  
-    if (!storedId) {
-      localStorage.setItem("surveyUserId", finalId);
-    }
-    console.log("Stored ID in Firefox:", localStorage.getItem("surveyUserId"));
-	
-    for (let attempt = 0; attempt < retries; attempt++) {
-      try {
-        await assignSurvey(finalId);
-        return;
-      } catch (err) {
-        console.warn(`Attempt ${attempt + 1} failed:`, err.message);
-        if (attempt === retries - 1) {
-          alert("We’re experiencing heavy traffic. Please try again shortly.");
-        } else {
-          await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
-        }
+async function assignSurveyWithRetry(retries = 5, delay = 500, overrideId = null) {
+  // Hide buttons
+  const buttons = document.querySelectorAll("button");
+  buttons.forEach(btn => btn.style.display = "none");
+
+  // Show loading message
+  document.getElementById("loadingMessage").style.display = "block";
+
+  const storedId = localStorage.getItem("surveyUserId");
+  const studentInput = document.getElementById("studentId").value.trim();
+
+  let finalId = overrideId || storedId || (studentInput ? studentInput : null);
+
+  if (!finalId) {
+    finalId = `anon_${new Date().getTime()}`;
+    localStorage.setItem("surveyUserId", finalId);
+  }
+
+  if (!storedId) {
+    localStorage.setItem("surveyUserId", finalId);
+  }
+
+  console.log("Stored ID in Firefox:", localStorage.getItem("surveyUserId"));
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      await assignSurvey(finalId);
+      return;
+    } catch (err) {
+      console.warn(`Attempt ${attempt + 1} failed:`, err.message);
+      if (attempt === retries - 1) {
+        alert("We’re experiencing heavy traffic. Please try again shortly.");
+      } else {
+        await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
       }
     }
   }
+
+  // 🔁 If failed, restore buttons and hide loading
+  buttons.forEach(btn => btn.style.display = "block");
+  document.getElementById("loadingMessage").style.display = "none";
+}
+
+
+
 
 
   // 🔁 Actual survey assignment logic
