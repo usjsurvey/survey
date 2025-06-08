@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,11 +62,12 @@
   <div class="container">
     <h1>Academic Research Portal</h1>
 	<p style="margin-top: -10px; font-size: 1em; color: #ccc;">
-	  Participate in one of our ongoing research studies about digital content perception. </br> Before proceeding, please enter your <strong>Student ID</strong> to begin the survey.
+	  Participate in one of our ongoing research studies about digital content perception. </br> Before proceeding, please enter your <strong>Student ID</strong> to begin.
 	</p>
     <input type="text" id="studentId" placeholder="Student ID (Optional)">
-    <p id="errorMsg" style="color: red; display: none;">Please enter your student ID (Optional)</p>
+    <p id="errorMsg" style="color: red; display: none;">Please enter your Student ID.</p>
     <button onclick="assignSurveyWithRetry()">Start Survey</button>
+    <button onclick="assignSurveyWithRetry()">Proceed Without Student ID</button>
   </div>
 
 <script>
@@ -93,16 +93,31 @@
   ];
 
   // ✅ Function with retry logic
-  async function assignSurveyWithRetry(retries = 5, delay = 500) {
+  async function assignSurveyWithRetry(retries = 5, delay = 500, overrideId = null) {
+    const storedId = localStorage.getItem("surveyUserId");
+    const studentInput = document.getElementById("studentId").value.trim();
+  
+    let finalId = overrideId || storedId || (studentInput ? studentInput : null);
+  
+    // If no ID yet, generate anonymous ID and store it
+    if (!finalId) {
+      finalId = `anon_${new Date().getTime()}`;
+      localStorage.setItem("surveyUserId", finalId);
+    }
+  
+    if (!storedId) {
+      localStorage.setItem("surveyUserId", finalId);
+    }
+    console.log("Stored ID in Firefox:", localStorage.getItem("surveyUserId"));
+	
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        await assignSurvey();
+        await assignSurvey(finalId);
         return;
       } catch (err) {
         console.warn(`Attempt ${attempt + 1} failed:`, err.message);
         if (attempt === retries - 1) {
           alert("We’re experiencing heavy traffic. Please try again shortly.");
-          console.error("Final failure:", err);
         } else {
           await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
         }
@@ -110,48 +125,60 @@
     }
   }
 
+
   // 🔁 Actual survey assignment logic
-  async function assignSurvey() {
-    const studentId = document.getElementById("studentId").value.trim();
-    const errorMsg = document.getElementById("errorMsg");
+// 🔁 Actual survey assignment logic
+async function assignSurvey(studentId) {
+  console.log("assignSurvey called with:", studentId);
+  const participantsRef = db.collection("participants");
+  const counterRef = db.collection("meta").doc("counter");
 
-    if (!studentId) {
-      errorMsg.style.display = "block";
-      throw new Error("Missing Student ID");
-    } else {
-      errorMsg.style.display = "none";
-    }
+  const existingDoc = await participantsRef.doc(studentId).get();
+  if (existingDoc.exists) {
+    console.log("Participant already exists. Redirecting to:", existingDoc.data().assignedSurvey);
+    window.location.assign(existingDoc.data().assignedSurvey);
+    return;
+  }
 
-    const participantsRef = db.collection("participants");
-    const counterRef = db.collection("meta").doc("counter");
+  console.log("Assigning new survey...");
 
-    // Check if already submitted
-    const existingDoc = await participantsRef.doc(studentId).get();
-    if (existingDoc.exists) {
-      const data = existingDoc.data();
-      window.location.assign(data.assignedSurvey);
-      return;
-    }
-
-    // New submission with transaction
+  try {
     await db.runTransaction(async (transaction) => {
       const counterSnap = await transaction.get(counterRef);
       const currentCount = counterSnap.exists ? counterSnap.data().count : 0;
       const assignedSurvey = surveyLinks[currentCount % surveyLinks.length];
 
+      console.log("Assigned survey:", assignedSurvey);
+
       transaction.set(participantsRef.doc(studentId), {
         studentId: studentId,
         assignedSurvey: assignedSurvey,
+        isAnonymous: studentId.startsWith("anon_"),
         timestamp: new Date().toISOString()
       });
 
       transaction.update(counterRef, {
         count: currentCount + 1
       });
-
-      setTimeout(() => window.location.assign(assignedSurvey), 100);
     });
+
+    // 🔁 VERIFY write before redirect
+    const verifyDoc = await db.collection("participants").doc(studentId).get();
+    console.log("✅ Post-check exists:", verifyDoc.exists);
+
+    if (verifyDoc.exists) {
+      setTimeout(() => {
+        window.location.assign(verifyDoc.data().assignedSurvey);
+      }, 200); // Let Firefox flush writes
+    } else {
+      alert("⚠️ Survey could not be saved. Please try again or use another browser.");
+    }
+  } catch (error) {
+    console.error("🔥 Firestore transaction failed in Firefox:", error);
+    alert("Something went wrong while assigning your survey. Please try again.");
   }
+}
+
 
   // Trigger by button
   document.getElementById("studentId").addEventListener("keypress", (e) => {
